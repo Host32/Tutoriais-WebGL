@@ -1,0 +1,187 @@
+<html>
+
+<head>
+    <title>Exemplo 1</title>
+</head>
+<script src="../libs/gl-matrix.js"></script>
+
+<script type="text/javascript">
+    /**
+     * @var {Object} gl webgl context
+     */
+    var gl;
+
+    /**
+     * Initialize the webgl context
+     * @param {Object} canvas DOM Element that references the canvas element
+     */
+    function initGL(canvas) {
+        try {
+            gl = canvas.getContext("experimental-webgl");
+            gl.viewportWidth = canvas.width;
+            gl.viewportHeight = canvas.height;
+        } catch (e) {}
+        if (!gl) {
+            alert("Could not initialise WebGL, sorry :-( ");
+        }
+    }
+
+    /**
+     * Create and compile a shader
+     * @param   {String} source The source code of shader
+     * @param   {gl.FRAGMENT_SHADER | gl.VERTEX_SHADER} type the type of the shader
+     * @returns {Object} compiled shader
+     */
+    function createShader(source, type) {
+        shader = gl.createShader(type);
+
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            alert(gl.getShaderInfoLog(shader));
+            return null;
+        }
+
+        return shader;
+    }
+
+    /**
+     * @var {String} vertexShaderCode The code of the Vertex Shader
+     */
+    var vertexShaderCode = [
+        'attribute vec3 aVertexPosition;',
+
+        'uniform mat4 uModelViewMatrix;',
+        'uniform mat4 uProjectionMatrix;',
+
+        'void main(void) {',
+        '   gl_Position = uProjectionMatrix * uModelViewMatrix * vec4(aVertexPosition, 1.0);',
+        '}'
+    ].join('\n');
+
+    /**
+     * @var {String} fragmentShaderCode The code of the Fragment Shader
+     */
+    var fragmentShaderCode = [
+        'precision mediump float;',
+
+        'void main(void) {',
+        '   gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);',
+        '}'
+    ].join('\n');
+
+    /**
+     * @var {Object} shaderProgram The compiled shader program
+     */
+    var shaderProgram;
+
+    /**
+     * Init the shaders
+     */
+    function initShaders() {
+        var fragmentShader = createShader(fragmentShaderCode, gl.FRAGMENT_SHADER);
+        var vertexShader = createShader(vertexShaderCode, gl.VERTEX_SHADER);
+
+        shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
+
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            alert("Could not initialise shaders");
+        }
+
+        gl.useProgram(shaderProgram);
+
+        // prepare uniforms
+        shaderProgram.uniforms = {};
+        shaderProgram.uniforms.uProjectionMatrix = gl.getUniformLocation(shaderProgram, "uProjectionMatrix");
+        shaderProgram.uniforms.uModelViewMatrix = gl.getUniformLocation(shaderProgram, "uModelViewMatrix");
+
+        // prepare attributes
+        shaderProgram.attributes = {};
+        shaderProgram.attributes.aVertexPosition = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+
+        // enable attributes
+        gl.enableVertexAttribArray(shaderProgram.attributes.aVertexPosition);
+    }
+
+    /**
+     * @var {Mat4} modelViewMatrix
+     */
+    var modelViewMatrix = mat4.create();
+
+    /**
+     * @var {Mat4} projectionMatrix
+     */
+    var projectionMatrix = mat4.create();
+
+    /**
+     * Update the initialized uniforms on the shader program
+     */
+    function setUniforms() {
+        gl.uniformMatrix4fv(shaderProgram.uniforms.uProjectionMatrix, false, projectionMatrix);
+        gl.uniformMatrix4fv(shaderProgram.uniforms.uModelViewMatrix, false, modelViewMatrix);
+    }
+
+    /**
+     * @var {Integer} vertexPositionBuffer References for the buffer
+     */
+    var vertexPositionBuffer;
+
+    /**
+     * Init the buffers
+     */
+    function initBuffers() {
+        vertexPositionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexPositionBuffer);
+
+        var vertices = [
+			 0.0, 1.0, 0.0,
+            -1.0, -1.0, 0.0,
+             1.0, -1.0, 0.0
+		];
+
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+        vertexPositionBuffer.itemSize = 3;
+        vertexPositionBuffer.numItems = 3;
+    }
+
+    /**
+     * Clear the viewport and draw the content of the buffers
+     */
+    function drawScene() {
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        mat4.perspective(45.0, gl.viewportWidth / gl.viewportHeight, 1, 100, projectionMatrix);
+
+        mat4.identity(modelViewMatrix);
+        mat4.translate(modelViewMatrix, [0, 0.0, -7.0]);
+
+        setUniforms();
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexPositionBuffer);
+        gl.vertexAttribPointer(shaderProgram.attributes.aVertexPosition, vertexPositionBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.drawArrays(gl.TRIANGLES, 0, vertexPositionBuffer.numItems);
+    }
+
+    function webGLStart() {
+        var canvas = document.getElementById("canvas");
+        initGL(canvas);
+        initShaders();
+        initBuffers();
+
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.enable(gl.DEPTH_TEST);
+
+        drawScene();
+    }
+</script>
+
+<body onload="webGLStart();">
+    <canvas id="canvas" style="border: none;" width="500" height="500"></canvas>
+</body>
+
+</html>
